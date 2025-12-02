@@ -1,11 +1,13 @@
 import time
-import os
-import whisper
+import numpy as np
+import sounddevice as sd
+from scipy.io.wavfile import write as wav_write
+from faster_whisper import WhisperModel
 
 # ----------------------
 # Load Whisper model
 # ----------------------
-model = whisper.load_model("base")   # or "tiny" if Pi struggles
+model = WhisperModel("base", device="cpu")
 
 # ----------------------
 # System State
@@ -33,19 +35,22 @@ def start_workout():
 
 def stop_workout():
     global current_mode
-    current_mode = MODE_EXERCISE_SELECTED
+    current_mode = MODE_NO_WORKOUT
     print("[SYSTEM] Workout stopped.")
+    print("[SYSTEM] System shutting down...")   # (optional)
+    raise SystemExit                          # <<< EXIT PROGRAM
+
 
 # ----------------------
 # Command Recognition
 # ----------------------
 def process_transcription(text):
-    text = text.lower()
+    text = text.lower().strip()
     print(f"[DEBUG] Recognized text: {text}")
 
     detected = False
 
-    if "start workout" or "workout started" in text:
+    if "start workout" in text or "workout started" in text:
         start_workout()
         detected = True
 
@@ -62,7 +67,7 @@ def process_transcription(text):
         detected = True
 
     if "stop workout" in text or "workout stopped" in text:
-        stop_workout()
+        stop_workout()     # <<< This will terminate the program
         detected = True
 
     if not detected:
@@ -70,32 +75,37 @@ def process_transcription(text):
 
 
 # ----------------------
-# Watch Folder
+# Microphone Recording + Whisper
 # ----------------------
-WATCH_FOLDER = "./audio_commands"  # change this to your folder
-processed_files = set()
+def listen_and_transcribe(duration=5, sample_rate=16000):
+    print("\n[SYSTEM] Listening...")
 
-def transcribe_file(path):
-    print(f"[SYSTEM] Transcribing: {path}")
-    result = model.transcribe(path)
-    text = result["text"]
-    process_transcription(text)
+    audio = sd.rec(int(duration * sample_rate),
+                   samplerate=sample_rate,
+                   channels=1,
+                   dtype="float32")
+    sd.wait()
+
+    audio_int16 = np.int16(audio * 32767)
+    temp_file = "temp_audio.wav"
+    wav_write(temp_file, sample_rate, audio_int16)
+
+    segments, info = model.transcribe(temp_file, language="en")
+    text = " ".join([seg.text for seg in segments]).strip()
+
+    return text
+
 
 # ----------------------
 # Main Loop
 # ----------------------
-print("[SYSTEM] Startup complete. No workout active.")
-print("[SYSTEM] Waiting for audio files...\n")
+print("[SYSTEM] Live voice control active!")
+print("[SYSTEM] Speak any command: start workout, stop workout, switch to squat...\n")
 
 while True:
-    files = os.listdir(WATCH_FOLDER)
+    text = listen_and_transcribe()
 
-    for f in files:
-        full_path = os.path.join(WATCH_FOLDER, f)
+    if text:
+        process_transcription(text)
 
-        # ignore already processed files
-        if f not in processed_files and f.lower().endswith((".m4a", ".wav", ".mp3")):
-            processed_files.add(f)
-            transcribe_file(full_path)
-
-    time.sleep(2)   # check every 2 seconds
+    time.sleep(0.2)
