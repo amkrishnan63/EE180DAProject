@@ -4,14 +4,10 @@ import sounddevice as sd
 from scipy.io.wavfile import write as wav_write
 from faster_whisper import WhisperModel
 
-# ----------------------
-# Load Whisper model
-# ----------------------
+
 model = WhisperModel("base", device="cpu")
 
-# ----------------------
-# System State
-# ----------------------
+
 MODE_NO_WORKOUT = 0
 MODE_EXERCISE_SELECTED = 1
 MODE_ACTIVE_WORKOUT = 2
@@ -19,9 +15,7 @@ MODE_ACTIVE_WORKOUT = 2
 current_mode = MODE_NO_WORKOUT
 current_exercise = None
 
-# ----------------------
-# Command Actions
-# ----------------------
+
 def set_exercise(ex):
     global current_mode, current_exercise
     current_exercise = ex
@@ -37,13 +31,8 @@ def stop_workout():
     global current_mode
     current_mode = MODE_NO_WORKOUT
     print("[SYSTEM] Workout stopped.")
-    print("[SYSTEM] System shutting down...")   # (optional)
-    raise SystemExit                          # <<< EXIT PROGRAM
-
-
-# ----------------------
-# Command Recognition
-# ----------------------
+    print("[SYSTEM] System shutting down...")   
+    raise SystemExit                        
 def process_transcription(text):
     text = text.lower().strip()
     print(f"[DEBUG] Recognized text: {text}")
@@ -74,9 +63,7 @@ def process_transcription(text):
         print("[SYSTEM] No valid command recognized.")
 
 
-# ----------------------
-# Microphone Recording + Whisper
-# ----------------------
+
 def listen_and_transcribe(duration=5, sample_rate=16000):
     print("\n[SYSTEM] Listening...")
 
@@ -96,9 +83,6 @@ def listen_and_transcribe(duration=5, sample_rate=16000):
     return text
 
 
-# ----------------------
-# Main Loop
-# ----------------------
 print("[SYSTEM] Live voice control active!")
 print("[SYSTEM] Speak any command: start workout, stop workout, switch to squat...\n")
 
@@ -109,3 +93,4 @@ while True:
         process_transcription(text)
 
     time.sleep(0.2)
+
